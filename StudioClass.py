@@ -1,6 +1,38 @@
 import random
 
 
+class Stats:
+    def show_design_results(self):
+        print('Design Dept')
+        self.__design.get_test_results()
+        print()
+    
+    def show_front_results(self):
+        print('Front Dept')
+        self.__front.get_test_results()
+        print()
+
+    def show_back_results(self):
+        print('Back Dept')
+        self.__back.get_test_results()
+        print()
+
+    def show_design_totals(self):
+        print('Design Dept')
+        self.__design.get_totals()
+        print()
+    
+    def show_front_totals(self):
+        print('Front Dept')
+        self.__front.get_totals()
+        print()
+
+    def show_back_totals(self):
+        print('Back Dept')
+        self.__back.get_totals()
+        print()
+
+
 class Repository:
     def create_person(self):
         Male_names = ['Alexander', 'Alexey', 'Andrey', 'Boris', 'Petr', 'Vladimir', 'Kirill']
@@ -46,40 +78,10 @@ class Company:
         self.__design.work_at_task()
         self.__front.work_at_task()
         self.__back.work_at_task()
+    
     def has_tasks(self):
         return (self.__design.has_tasks() or self.__front.has_tasks() or self.__back.has_tasks())
     
-    
-    def show_design_results(self):
-        print('Design Dept')
-        self.__design.get_test_results()
-        print()
-    
-    def show_front_results(self):
-        print('Front Dept')
-        self.__front.get_test_results()
-        print()
-
-    def show_back_results(self):
-        print('Back Dept')
-        self.__back.get_test_results()
-        print()
-
-    def show_design_totals(self):
-        print('Design Dept')
-        self.__design.get_totals()
-        print()
-    
-    def show_front_totals(self):
-        print('Front Dept')
-        self.__front.get_totals()
-        print()
-
-    def show_back_totals(self):
-        print('Back Dept')
-        self.__back.get_totals()
-        print()
-
 
 class Department:
     def __init__(self, name, dept):
@@ -92,6 +94,7 @@ class Department:
     
     def add_employee(self, employee):
         self.__team[employee] = 0
+        employee.add_observer(self)
 
     def set_boss(self, boss):
         self.__team[boss] = 0
@@ -104,7 +107,6 @@ class Department:
                 return True
         return False
 
-
     def add_task(self, task):
         min_employee = None
         for employee in self.__team:
@@ -115,29 +117,27 @@ class Department:
         min_employee.add_task(task)
         print(min_employee.tasks)
         self.__team[min_employee] += 1
-        
+  
     def work_at_task(self):
         if self.has_tasks():
             for employee in self.__team:
-                task = employee.work_at_task()
-                if task == None:
-                    continue
+                employee.work_at_task()
 
-                if task.act_time > task.plan_time:
-                    employee.kpi -= 1
-                    self.__overdue_tasks += 1
-                    if employee != self.boss:
-                        self.boss.kpi -= 1
-                else:
-                    employee.kpi += 1
-                    self.__tasks_in_time += 1
-                    if employee != self.boss:
-                        self.boss.kpi += 1
-
-                if self.__next:
-                    self.__next.add_task(task)
-
+    def update(self, employee, task):
+        if task.act_time > task.plan_time:
+            employee.kpi -= 1
+            self.__overdue_tasks += 1
+            if employee != self.boss:
+                self.boss.kpi -= 1
+        else:
+            employee.kpi += 1
+            self.__tasks_in_time += 1
+            if employee != self.boss:
+                self.boss.kpi += 1
         
+        if self.__next:
+            self.__next.add_task(task)   
+
     def get_test_results(self):
         for i in self.__team:
             print(i.first_name, i.last_name, '-', i.kpi, ': Total', self.__team[i])
@@ -147,6 +147,54 @@ class Department:
         print('Задачи, выполненные в срок: ', self.__tasks_in_time)
         print('Просроченные задачи: ', self.__overdue_tasks)
     
+
+class LoyalPolicy:
+    def reward(self, dept, employee, task):
+        if task.act_time <= task.plan_time:
+            employee.kpi += 2
+            dept.__tasks_in_time += 2
+            if employee != dept.boss:
+                dept.boss.kpi += 2
+
+    def fine(self, dept, employee, task):
+        if task.act_time > (task.plan_time * 1.5):
+            employee.kpi -= 1
+            dept.__overdue_tasks += 1
+            if employee != dept.boss:
+                dept.boss.kpi -= 1
+
+
+class ModeratePolicy:
+    def reward(self, dept, employee, task):
+        if task.act_time <= task.plan_time:
+            employee.kpi += 1
+            dept.__tasks_in_time += 1
+            if employee != dept.boss:
+                dept.boss.kpi += 1
+    
+    def fine(self, dept, employee, task):
+        if task.act_time > task.plan_time:
+            employee.kpi -= 1
+            dept.__overdue_tasks += 1
+            if employee != dept.boss:
+                dept.boss.kpi -= 1
+
+
+class StrictPolicy:
+    def reward(self, dept, employee, task):
+        if task.act_time <= task.plan_time:
+            employee.kpi += 1
+            dept.__tasks_in_time += 1
+            if employee != dept.boss:
+                dept.boss.kpi += 1
+    
+    def fine(self, dept, employee, task):
+        if task.act_time > task.plan_time:
+            employee.kpi -= 2
+            dept.__overdue_tasks += 1
+            if employee != dept.boss:
+                dept.boss.kpi -= 2
+
 
 class Employee:
     def __init__(self, first_name, last_name, kpi):
@@ -166,9 +214,11 @@ class Employee:
             task.act_time += 1
             if x < 100 - task.complexity:
                 del self.tasks[0]
-                return task
-        else:
-            return None
+                for observer in self.__observers:
+                    observer.update(self, task)
+                #return task
+        #else:
+        #    return None
     
     def add_observer(self, observer):
         self.__observers.append(observer)
@@ -176,29 +226,11 @@ class Employee:
     def remove_observer(self, observer):
         self.__observers.remove(observer)
 
-    def notify(self):
-        for observer in self.__observers:
-            observer.update()
-        
-
-class Observer:
-    def update_tasks(self, employee, task):
-        if len(employee.tasks) != 0:
-            task = employee.tasks[0]
-            x = random.randint(0, 100)
-            task.act_time += 1
-            if x < 100 - task.complexity:
-                del employee.tasks[0]
-                return task
-        else:
-            return None
-
-
 
 class Task:
-    def __init__(self, plan_time, act_time, complexity):
+    def __init__(self, plan_time,complexity):
         self.plan_time = plan_time
-        self.act_time = act_time
+        self.act_time = 0
         self.complexity = complexity
 
     def show_act_time(self):
