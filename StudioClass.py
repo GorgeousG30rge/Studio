@@ -60,9 +60,9 @@ class Repository:
         return department
     
     def create_company(self):
-        back = self.create_department('Back Dept', LoyalPolicy, dept=None)
-        front = self.create_department('Front Dept', StrictPolicy, back)
-        design = self.create_department('Design Dept', ModeratePolicy, front)
+        back = self.create_department('Back Dept', LoyalPolicy(), dept=None)
+        front = self.create_department('Front Dept', StrictPolicy(), back)
+        design = self.create_department('Design Dept', ModeratePolicy(), front)
         company = Company(design, front, back)
 
         return company
@@ -93,8 +93,8 @@ class Department:
         self.__next = dept
         self.boss = 'boss'  # экземпляр класса Employee
         self.__team = {}    # Состав отдела и количество задач у каждого сотрудника
-        self.__tasks_in_time = 0
-        self.__overdue_tasks = 0
+        self.tasks_in_time = 0
+        self.overdue_tasks = 0
     
     def add_employee(self, employee):
         self.__team[employee] = 0
@@ -127,11 +127,8 @@ class Department:
             for employee in self.__team:
                 employee.work_at_task()
 
-    def update(self, task):
-        if task.act_time > task.plan_time:
-            self.policy.fine()
-        else:
-            self.policy.reward()
+    def update(self, employee, task):
+        self.policy.process(self, employee, task)
 
         if self.__next:
             self.__next.add_task(task)   
@@ -141,63 +138,75 @@ class Department:
             print(i.first_name, i.last_name, '-', i.kpi, ': Total', self.__team[i])
     
     def get_totals(self):
-        print('Всего задач, переданных в отдел: ', self.__tasks_in_time + self.__overdue_tasks)
-        print('Задачи, выполненные в срок: ', self.__tasks_in_time)
-        print('Просроченные задачи: ', self.__overdue_tasks)
+        print('Всего задач, переданных в отдел: ', self.tasks_in_time + self.overdue_tasks)
+        print('Задачи, выполненные в срок: ', self.tasks_in_time)
+        print('Просроченные задачи: ', self.overdue_tasks)
     
 
 class LoyalPolicy:
-    @staticmethod
-    def reward(dept, employee, task):
-        if task.act_time <= task.plan_time:
-            employee.kpi += 2
-            dept.__tasks_in_time += 2
-            if employee != dept.boss:
-                dept.boss.kpi += 2
-
-    @staticmethod
-    def fine(dept, employee, task):
+    def process(self, dept, employee, task):
         if task.act_time > (task.plan_time * 1.5):
-            employee.kpi -= 1
-            dept.__overdue_tasks += 1
-            if employee != dept.boss:
-                dept.boss.kpi -= 1
+            self.fine(dept, employee, task)
+        else:
+            self.reward(dept, employee, task)
+    
+    #def get_k(self):
+    #    return 1.5
+
+
+    def reward(self, dept, employee, task):
+        employee.kpi += 2
+        dept.tasks_in_time += 2
+        if employee != dept.boss:
+            dept.boss.kpi += 2
+
+    
+    def fine(self, dept, employee, task):
+        employee.kpi -= 1
+        dept.overdue_tasks += 1
+        if employee != dept.boss:
+            dept.boss.kpi -= 1
 
 
 class ModeratePolicy:
-    @staticmethod
-    def reward(dept, employee, task):
+    def process(self, dept, employee, task):
         if task.act_time <= task.plan_time:
-            employee.kpi += 1
-            dept.__tasks_in_time += 1
-            if employee != dept.boss:
-                dept.boss.kpi += 1
+            self.reward(dept, employee, task)
+        else:
+            self.fine(dept, employee, task)
 
-    @staticmethod
-    def fine(dept, employee, task):
-        if task.act_time > task.plan_time:
-            employee.kpi -= 1
-            dept.__overdue_tasks += 1
-            if employee != dept.boss:
-                dept.boss.kpi -= 1
+    def reward(self, dept, employee, task):
+        employee.kpi += 1
+        dept.tasks_in_time += 1
+        if employee != dept.boss:
+            dept.boss.kpi += 1
+
+
+    def fine(self, dept, employee, task):
+        employee.kpi -= 1
+        dept.overdue_tasks += 1
+        if employee != dept.boss:
+            dept.boss.kpi -= 1
 
 
 class StrictPolicy:
-    @staticmethod
-    def reward(dept, employee, task):
+    def process(self, dept, employee, task):
         if task.act_time <= task.plan_time:
-            employee.kpi += 1
-            dept.__tasks_in_time += 1
-            if employee != dept.boss:
-                dept.boss.kpi += 1
+            self.reward(dept, employee, task)
+        else:
+            self.fine(dept, employee, task)
 
-    @staticmethod
-    def fine(dept, employee, task):
-        if task.act_time > task.plan_time:
-            employee.kpi -= 2
-            dept.__overdue_tasks += 1
-            if employee != dept.boss:
-                dept.boss.kpi -= 2
+    def reward(self, dept, employee, task):
+        employee.kpi += 1
+        dept.tasks_in_time += 1
+        if employee != dept.boss:
+            dept.boss.kpi += 1
+
+    def fine(self, dept, employee, task):
+        employee.kpi -= 2
+        dept.overdue_tasks += 1
+        if employee != dept.boss:
+            dept.boss.kpi -= 2
 
 
 class Employee:
