@@ -145,13 +145,13 @@ class Department:
 
 class LoyalPolicy:
     def process(self, dept, employee, task):
-        if task.act_time > (task.plan_time * 1.5):
+        if task.act_time > (task.plan_time * loyalty_multiplier()):
             self.fine(dept, employee, task)
         else:
             self.reward(dept, employee, task)
     
-    #def get_k(self):
-    #    return 1.5
+    def loyalty_multiplier(self):
+        return 1.5
 
 
     def reward(self, dept, employee, task):
